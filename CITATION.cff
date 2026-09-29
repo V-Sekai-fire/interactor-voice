@@ -1,0 +1,34 @@
+cff-version: 1.2.0
+message: If you use this code, cite it and the codec it carries.
+title: interactor-voice (voice.elf)
+type: software
+authors:
+  - name: K. S. Ernest (iFire) Lee
+license: MIT
+repository-code: https://github.com/V-Sekai-fire/interactor-voice
+references:
+  - type: software
+    title: Opus 1.6.1 (vendor/opus, the classic float codec without its neural extensions)
+    authors:
+      - name: Xiph.Org Foundation and the Opus contributors
+    repository-code: https://github.com/xiph/opus
+    version: 1.6.1
+    license: BSD-3-Clause
+    notes: >-
+      Copied from the org's engine fork (thirdparty/opus_speech). vendor/opus/COPYING is upstream's
+      licence text; vendor/opus/config.h is written here.
+  - type: software
+    title: godot-speech (modules/speech in V-Sekai-fire/entities-godot)
+    authors:
+      - name: V-Sekai contributors
+      - name: K. S. Ernest (iFire) Lee
+      - name: SaracenOne
+    repository-code: https://github.com/V-Sekai-fire/entities-godot
+    license: MIT
+    notes: >-
+      The codec settings (48 kHz mono, 20 ms frames, 128 kbit/s, complexity 10, in-band FEC for 10%
+      loss) come from its SpeechProcessor.
+  - type: software
+    title: godot-sandbox guest API (vendor/sandbox-api)
+    repository-code: https://github.com/V-Sekai-fire/godot-sandbox
+    license: BSD-3-Clause
