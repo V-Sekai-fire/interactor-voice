@@ -7,7 +7,7 @@ package VoiceTests where
   leanOptions := #[⟨`autoImplicit, false⟩]
 
 require «plausible-witness-dag» from git
-  "https://github.com/fire/plausible-witness-dag" @ "160b94c9c6eed3bb9ebffce919fc6f989dcafba8"
+  "https://github.com/V-Sekai-fire/plausible-witness-dag" @ "f18818941e8914b110f85ec330889a4785c01bf1"
 
 def opusRoot (pkg : Package) : FilePath := pkg.dir / ".." / "vendor" / "opus"
 
