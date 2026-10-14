@@ -5,6 +5,8 @@
 #
 # Needs cmake, ninja, a clang++ with a riscv64 target, and the riscv64 glibc sysroot that
 # interactor-dress-on's build.sh uses. No V extension: the Linux addon traps on vector code.
+# Double precision, as the engine RFD 2287 builds: the addon refuses a guest whose Variant size
+# differs from its own.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -25,7 +27,8 @@ if [ ! -f "$BUILD/build.ninja" ]; then
 	cmake -S "$HERE" -B "$BUILD" -G Ninja \
 		-DCMAKE_TOOLCHAIN_FILE="$SYSROOT/toolchain.cmake" \
 		-DCMAKE_BUILD_TYPE=Release \
-		-DSANDBOX_RISCV_EXT_V=OFF
+		-DSANDBOX_RISCV_EXT_V=OFF \
+		-DDOUBLE_PRECISION=ON
 fi
 cmake --build "$BUILD" -- -j "${BUILD_JOBS:-8}"
 ls -la "$HERE/project/voice.elf"
