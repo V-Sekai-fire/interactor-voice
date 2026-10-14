@@ -24,6 +24,8 @@ abstract: >-
   16 MiB pieces over the bare syscalls: the host views at most 16 MiB of
   guest memory per memory syscall, and ggml's test-backend-ops copies 64 MiB
   tensors (Gate 3, a protection fault above 16 MiB).
+  docker/api/syscalls.h is godot-sandbox edcf6c4's, whose ECALL ids run to
+  GAME_API_BASE + 69 (ARRAY_WINDOW, PACKED_ACQUIRE and PACKED_RELEASE added).
 type: software
 authors:
   - name: libriscv contributors
