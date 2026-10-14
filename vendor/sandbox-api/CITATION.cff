@@ -24,13 +24,15 @@ abstract: >-
   16 MiB pieces over the bare syscalls: the host views at most 16 MiB of
   guest memory per memory syscall, and ggml's test-backend-ops copies 64 MiB
   tensors (Gate 3, a protection fault above 16 MiB).
-  docker/api/syscalls.h is godot-sandbox edcf6c4's, whose ECALL ids run to
-  GAME_API_BASE + 69 (ARRAY_WINDOW, PACKED_ACQUIRE and PACKED_RELEASE added).
+  Every other file is godot-sandbox edcf6c4's: syscalls.h, whose ECALL ids
+  run to GAME_API_BASE + 69, and api.cpp's .sandbox_variant section, the size
+  of this build's Variant, which a host built for the other real_t refuses
+  at load instead of misreading every value.
 type: software
 authors:
   - name: libriscv contributors
     website: https://github.com/libriscv/godot-sandbox
   - name: V-Sekai-fire
 repository-code: https://github.com/V-Sekai-fire/godot-sandbox
-commit: 9c3c9f60e828d3340ea522ecbeb0eb5af3bd82a3
+commit: edcf6c4e4e9ba5165887b86c5e3599c67b7c01fe
 license: BSD-3-Clause
