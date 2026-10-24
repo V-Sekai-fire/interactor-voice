@@ -5,7 +5,7 @@
 #
 # Needs cmake, ninja, a clang++ with a riscv64 target, and the riscv64 glibc sysroot that
 # interactor-dress-on's build.sh uses. No V extension: the Linux addon traps on vector code.
-# Double precision, as the engine RFD 2287 builds: the addon refuses a guest whose Variant size
+# Double precision, as the engine RFD66606-2287 builds: the addon refuses a guest whose Variant size
 # differs from its own.
 set -euo pipefail
 

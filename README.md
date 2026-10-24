@@ -4,7 +4,7 @@ Voice as sequenced Opus packets in a godot-sandbox guest, with a concealed frame
 
 ## What it is for
 
-`voice.elf` carries the voice codec in a guest, so the engine carries no voice code (RFD 2287). Each packet carries a sequence number, so a loss is counted and concealed in place and the output stays aligned with the input. Carrying the packets is the zone's job, not this repository's. The tests are a Lean package that links the codec natively; Lean is never in the running path.
+`voice.elf` carries the voice codec in a guest, so the engine carries no voice code (RFD66606-2287). Each packet carries a sequence number, so a loss is counted and concealed in place and the output stays aligned with the input. Carrying the packets is the zone's job, not this repository's. The tests are a Lean package that links the codec natively; Lean is never in the running path.
 
 ## Build and run
 
