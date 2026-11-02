@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # Build voice.elf into project/.
 #
-#   RISCV64_SYSROOT=<dir with toolchain.cmake and sysroot/> ./build.sh
+#   RISCV64_SYSROOT=<repository-riscv64-sysroot> [GUEST_RUNTIME_ROOT=<contract-guest-runtime>] ./build.sh
 #
-# Needs cmake, ninja, a clang++ with a riscv64 target, and the riscv64 glibc sysroot that
-# interactor-dress-on's build.sh uses. No V extension: the Linux addon traps on vector code.
-# Double precision, as the engine RFD 2287 builds: the addon refuses a guest whose Variant size
-# differs from its own.
+# Needs cmake, ninja, a clang++ with a riscv64 target (the sysroot's pixi environment has one), the
+# repository-riscv64-sysroot checkout, and the contract-guest-runtime checkout, by default at
+# ../../2-contract/guest-runtime as the goal manifest lays it out. No V extension: the Linux addon
+# traps on vector code. Double precision, as the engine RFD 2287 builds: the addon refuses a guest
+# whose Variant size differs from its own.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -27,6 +28,7 @@ if [ ! -f "$BUILD/build.ninja" ]; then
 	cmake -S "$HERE" -B "$BUILD" -G Ninja \
 		-DCMAKE_TOOLCHAIN_FILE="$SYSROOT/toolchain.cmake" \
 		-DCMAKE_BUILD_TYPE=Release \
+		${GUEST_RUNTIME_ROOT:+-DGUEST_RUNTIME_ROOT="$GUEST_RUNTIME_ROOT"} \
 		-DSANDBOX_RISCV_EXT_V=OFF \
 		-DDOUBLE_PRECISION=ON
 fi
