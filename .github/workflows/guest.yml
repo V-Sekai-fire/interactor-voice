@@ -42,10 +42,10 @@ jobs:
           repository: V-Sekai-fire/repository-riscv64-sysroot
           ref: ${{ env.SYSROOT_SHA }}
           path: weft/5-repository/riscv64-sysroot
-      - name: cmake and ninja from apt
+      - name: cmake, ninja and the llvm binutils from apt
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y -q cmake ninja-build
+          sudo apt-get install -y -q cmake ninja-build llvm
       - uses: prefix-dev/setup-pixi@v0.9.3
         with:
           manifest-path: weft/5-repository/riscv64-sysroot/pixi.toml
