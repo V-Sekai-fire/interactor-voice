@@ -129,7 +129,15 @@ jobs:
           "$GODOT" --headless --version | tee version.txt
           grep -q '\.double\.' version.txt
       - name: Import the project
-        run: timeout 300 "$GODOT" --headless --path project --import
+        # The headless editor can abort at the end of the import pass on a runner (exit 134, after
+        # "Loading editor layout"), as interactor-fabric-zone's gates also found. What the gates need
+        # from it is the ELF registered as a resource and the addon listed as an extension, so the
+        # extension list is written here and a failed import does not stop the job: each gate below
+        # fails by itself if the project is not usable.
+        run: |
+          mkdir -p project/.godot
+          echo "res://addons/godot_sandbox/bin/godot-riscv.gdextension" > project/.godot/extension_list.cfg
+          timeout 300 "$GODOT" --headless --path project --import || echo "import exited $? (tolerated)"
       - name: Loopback gate (a 1 kHz tone, nothing lost)
         run: |
           timeout 300 "$GODOT" --headless --path project --script "$PWD/tests/gate_voice_loopback.gd" | tee gate.txt
