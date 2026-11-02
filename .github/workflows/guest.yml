@@ -1,0 +1,164 @@
+# voice.elf from source with the shared guest recipe, then the harness and the loopback gate, each with
+# its control, against the pinned double-precision editor and godot_sandbox addon. The gates run on the
+# ELF this workflow built, which replaces the tracked project/voice.elf in the gate job; the tracked
+# one is compared against it and a difference is reported, not failed, as the two may come from
+# different clang builds.
+name: guest
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  GUEST_RUNTIME_SHA: 1d8341825ac6fcfa8b8b2a11ae908e5d6aa71b33
+  SYSROOT_SHA: 585de9e0cfe15fc14f9961083d857d609592de42
+  ENGINE_TAG: v20261019-double.2
+  ADDON_TAG: v20261019-addon.1
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: weft/3-interactor/voice
+      - uses: actions/checkout@v4
+        with:
+          repository: V-Sekai-fire/contract-guest-runtime
+          ref: ${{ env.GUEST_RUNTIME_SHA }}
+          path: weft/2-contract/guest-runtime
+      - uses: actions/checkout@v4
+        with:
+          repository: V-Sekai-fire/repository-riscv64-sysroot
+          ref: ${{ env.SYSROOT_SHA }}
+          path: weft/5-repository/riscv64-sysroot
+      - name: cmake, ninja and the llvm binutils from apt
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q cmake ninja-build llvm
+      - uses: prefix-dev/setup-pixi@v0.9.3
+        with:
+          manifest-path: weft/5-repository/riscv64-sysroot/pixi.toml
+          cache: false
+      - name: clang and lld from the sysroot's pixi environment
+        working-directory: weft/5-repository/riscv64-sysroot
+        run: |
+          echo "$PWD/.pixi/envs/default/bin" >> "$GITHUB_PATH"
+          .pixi/envs/default/bin/clang++ --print-targets | grep -q riscv64
+          .pixi/envs/default/bin/clang++ --version | head -1
+      - name: Keep the tracked voice.elf
+        run: cp weft/3-interactor/voice/project/voice.elf "$RUNNER_TEMP/tracked.elf"
+      - name: Build voice.elf
+        working-directory: weft/3-interactor/voice
+        env:
+          RISCV64_SYSROOT: ${{ github.workspace }}/weft/5-repository/riscv64-sysroot
+          BUILD_DIR: ${{ runner.temp }}/build
+        run: ./build.sh
+      - name: The ELF is an rv64gc double-precision guest, symbols kept, no build paths
+        working-directory: weft/3-interactor/voice
+        run: |
+          E=project/voice.elf
+          file "$E" | grep -q "UCB RISC-V"
+          llvm-objdump -s -j .sandbox_variant "$E" | grep -q "53425856 28000000"
+          if llvm-readelf -A "$E" | grep -q "_v1p0"; then echo "voice.elf uses the V extension"; exit 1; fi
+          # --strip-debug only: the Sandbox finds the API through .symtab, which -s would remove.
+          llvm-nm "$E" | grep -q " T main\$" || { echo "no .symtab: was voice.elf stripped with -s?"; exit 1; }
+          for f in voice_open voice_encode_frame voice_decode_packet voice_stats; do
+            llvm-nm "$E" | grep -q " t _ZL[0-9]*${f}" || { echo "no symbol for $f"; exit 1; }
+            strings "$E" | grep -qx "$f" || { echo "$f is not registered"; exit 1; }
+          done
+          test "$(strings "$E" | grep -c "$GITHUB_WORKSPACE")" = 0
+          sha256sum "$E"
+      - name: Compare with the tracked voice.elf
+        run: |
+          built=$(sha256sum weft/3-interactor/voice/project/voice.elf | cut -d' ' -f1)
+          tracked=$(sha256sum "$RUNNER_TEMP/tracked.elf" | cut -d' ' -f1)
+          echo "built   $built"
+          echo "tracked $tracked"
+          if [ "$built" != "$tracked" ]; then
+            echo "::warning file=project/voice.elf::the tracked voice.elf differs from the one built from source; the gates run on the built one"
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: voice-elf-${{ github.sha }}
+          path: weft/3-interactor/voice/project/voice.elf
+          if-no-files-found: error
+
+  gate:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: The built voice.elf in place of the tracked one
+        uses: actions/download-artifact@v4
+        with:
+          name: voice-elf-${{ github.sha }}
+          path: project
+      - name: The pinned engine and addon, checked against their release's SHA256SUMS
+        run: |
+          base=https://github.com/V-Sekai-fire/service-godot-build/releases/download
+          bin=godot.linuxbsd.editor.double.x86_64
+          so=libgodot_riscv.linux.template_release.double.x86_64.so
+          addon=project/addons/godot_sandbox/bin
+          mkdir -p "$addon"
+          curl -fsSL -o "$RUNNER_TEMP/engine.sums" "$base/$ENGINE_TAG/SHA256SUMS"
+          curl -fsSL -o "$RUNNER_TEMP/addon.sums" "$base/$ADDON_TAG/SHA256SUMS"
+          curl -fsSL -o "$RUNNER_TEMP/$bin" "$base/$ENGINE_TAG/$bin"
+          curl -fsSL -o "$addon/$so" "$base/$ADDON_TAG/$so"
+          (cd "$RUNNER_TEMP" && grep " $bin\$" engine.sums | sha256sum -c -)
+          (cd "$addon" && grep " $so\$" "$RUNNER_TEMP/addon.sums" | sha256sum -c -)
+          printf '%s\n' '[configuration]' 'entry_symbol = "riscv_library_init"' 'compatibility_minimum = "4.4"' \
+            '[libraries]' "linux.debug.double.x86_64 = \"./$so\"" "linux.release.double.x86_64 = \"./$so\"" \
+            > "$addon/godot-riscv.gdextension"
+          chmod +x "$RUNNER_TEMP/$bin"
+          echo "GODOT=$RUNNER_TEMP/$bin" >> "$GITHUB_ENV"
+      - run: sudo apt-get update -q && sudo apt-get install -y -q fontconfig fonts-dejavu-core
+      - name: The engine is double
+        run: |
+          "$GODOT" --headless --version | tee version.txt
+          grep -q '\.double\.' version.txt
+      - name: Import the project
+        # The headless editor can abort at the end of the import pass on a runner (exit 134, after
+        # "Loading editor layout"), as interactor-fabric-zone's gates also found. What the gates need
+        # from it is the ELF registered as a resource and the addon listed as an extension, so the
+        # extension list is written here and a failed import does not stop the job: each gate below
+        # fails by itself if the project is not usable.
+        run: |
+          mkdir -p project/.godot
+          echo "res://addons/godot_sandbox/bin/godot-riscv.gdextension" > project/.godot/extension_list.cfg
+          timeout 300 "$GODOT" --headless --path project --import || echo "import exited $? (tolerated)"
+      - name: Loopback gate (a 1 kHz tone, nothing lost)
+        run: |
+          timeout 300 "$GODOT" --headless --path project --script "$PWD/tests/gate_voice_loopback.gd" | tee gate.txt
+          grep -q "^RESULT: PASS" gate.txt
+      - name: The loopback gate's controls (each must FAIL at its check)
+        run: |
+          for pair in "corrupt:snr" "frame_size:packets"; do
+            c=${pair%%:*}; want=${pair#*:}
+            if timeout 300 "$GODOT" --headless --path project --script "$PWD/tests/gate_voice_loopback.gd" \
+              ++ --control=$c > "gate-$c.txt" 2>&1; then
+              cat "gate-$c.txt"; echo "the gate passed with --control=$c"; exit 1
+            fi
+            grep -q "^RESULT: FAIL (" "gate-$c.txt" || { cat "gate-$c.txt"; echo "--control=$c did not reach a verdict"; exit 1; }
+            grep -q "^FAIL $want:" "gate-$c.txt" || { cat "gate-$c.txt"; echo "--control=$c did not fail $want"; exit 1; }
+            grep "^FAIL" "gate-$c.txt"
+          done
+      - name: Harness (a varying tone, one packet lost and concealed)
+        run: |
+          timeout 300 "$GODOT" --headless --path project --script harness.gd | tee harness.txt
+          grep -q "^RESULT: PASS" harness.txt
+      - name: The harness's control (the loss hidden by renumbering must FAIL the check)
+        run: |
+          timeout 300 "$GODOT" --headless --path project --script harness.gd ++ --control | tee harness-control.txt
+          grep -q "^RESULT: control fails, as it must" harness-control.txt
