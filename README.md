@@ -8,10 +8,10 @@ Voice as sequenced Opus packets in a godot-sandbox guest, with a concealed frame
 
 ## Build and run
 
-With a `clang++` that has a riscv64 target on `PATH`:
+With a `clang++` that has a riscv64 target on `PATH` (the sysroot's pixi environment has one), a `repository-riscv64-sysroot` checkout, and a `contract-guest-runtime` checkout at `../../2-contract/guest-runtime` or named by `GUEST_RUNTIME_ROOT`:
 
 ```sh
-RISCV64_SYSROOT=<riscv64 sysroot with toolchain.cmake> ./build.sh
+RISCV64_SYSROOT=<repository-riscv64-sysroot> ./build.sh
 cd tests && lake build && lake exe tests
 ```
 
@@ -22,7 +22,12 @@ tools/link_addon.sh <path to a godot_sandbox addon>
 godot --path project --import
 godot --path project --script harness.gd
 godot --path project --script harness.gd ++ --control
+godot --headless --path project --script "$PWD/tests/gate_voice_loopback.gd"
+godot --headless --path project --script "$PWD/tests/gate_voice_loopback.gd" ++ --control=corrupt
+godot --headless --path project --script "$PWD/tests/gate_voice_loopback.gd" ++ --control=frame_size
 ```
+
+The loopback gate sends a 1 kHz tone through the guest with nothing lost and checks the frame count, the decoder's counts and the SNR. Each control must fail it. The `guest` workflow builds `voice.elf` from source and runs the harness and the gate, with their controls, on the ELF it built.
 
 ## Licence
 

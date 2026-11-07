@@ -29,6 +29,6 @@ references:
       The codec settings (48 kHz mono, 20 ms frames, 128 kbit/s, complexity 10, in-band FEC for 10%
       loss) come from its SpeechProcessor.
   - type: software
-    title: godot-sandbox guest API (vendor/sandbox-api)
+    title: godot-sandbox guest API (through contract-guest-runtime)
     repository-code: https://github.com/V-Sekai-fire/godot-sandbox
     license: BSD-3-Clause
